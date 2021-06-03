@@ -1,6 +1,7 @@
 package p1
 
 trait T1 {
-
-  O1.o1
+  class C {
+    O1.o1
+  }
 }
