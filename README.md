@@ -241,3 +241,46 @@ diff -u src/main/scala/p1/O1.scala src/main-changes/scala/p1/O1.scala
 + git co -f HEAD -- src/main/
 + exit 1
 ```
+
+## Non-Zinc reproduction
+
+```
+> scalac --scala-version 2.12.14 -d /tmp -cp /tmp src/main/scala/p1/{O1,T1,package}.scala
+> rm /tmp/p1/T1*.class
+> scalac --scala-version 2.12.14 -d /tmp -cp /tmp src/main/scala/p1/T1.scala
+error: Symbol 'type p1.T1' is missing from the classpath.
+This symbol is required by 'package p1.package'.
+Make sure that type T1 is in your classpath and check for conflicting dependencies with `-Ylog-classpath`.
+A full rebuild may help if 'package.class' was compiled against an incompatible version of p1.
+one error found
+```
+
+## Scalac Bug?
+
+This is a limitation of `scalac`. It eagerly completes the info of `package.class` (see `openPackageModule`) on the
+first reference to  that package (in this case the `package p1;` statement in the preamble of `T1.scala`.)
+
+Zinc has deleted the  stale `T1.class` classfile prior to recompiling `T1.scala`, and the source symbol has not yet been named,
+so the compiler assumes a classfile is missing.
+
+It would certainly be great to find a way to make scalac a little lazier to make this work. It would help me fix
+a tricky [compiler determism bug](https://github.com/scala/bug/issues/12092). 
+I [tried this once](https://github.com/retronym/scala/pull/99) but haven't yet succeeded.
+
+## Remediation in Zinc?
+
+Interestingly, if `trait T1` is directly invalidated, Zinc invalidates `package.class` via inheritance, and works
+around this issue, as shows by this [diff](https://github.com/retronym/zinc-bug-implicit-in-package-object-parent/pull/1/files)
+to the source and Zinc log.
+
+I notice there is already logic in Zinc to invalidate package objects. Perhaps this could be exended to deal with
+the case when a package parent is not directly invalidated, but rather indirectly because a member class is
+invalidated?
+
+See:
+  - https://github.com/sbt/zinc/blob/67afa3062985e1be1b3f3df89a14cd8f4f94f4e1/internal/zinc-core/src/main/scala/sbt/internal/inc/IncrementalCommon.scala#L81-L84
+  - https://github.com/sbt/zinc/blob/67afa3062985e1be1b3f3df89a14cd8f4f94f4e1/internal/zinc-core/src/main/scala/sbt/internal/inc/IncrementalCommon.scala#L600-L616
+  - https://github.com/sbt/zinc/blob/96a5e6f0fb61d7b35cf7cc964a8081d40ee88b70/internal/zinc-core/src/main/scala/sbt/internal/inc/IncrementalNameHashing.scala#L41-L52
+
+
+
