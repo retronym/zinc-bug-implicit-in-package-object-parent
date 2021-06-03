@@ -1,5 +1,18 @@
 ## Incremental compilation bug in Zinc/SBT with package objects, inheritance, implicits, inferred types, oh my!
 
+```diff
+diff -u src/main/scala/p1/O1.scala src/main-changes/scala/p1/O1.scala
+--- src/main/scala/p1/O1.scala	2021-06-03 17:07:36.000000000 +1000
++++ src/main-changes/scala/p1/O1.scala	2021-06-03 16:56:55.000000000 +1000
+@@ -1,5 +1,5 @@
+ package p1
+
+ object O1 {
+-  def o1 = ""
++  def o1 = 42
+ }
+```
+
 ```
 ./build.sh
 + sbt compile
